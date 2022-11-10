@@ -39,6 +39,8 @@ public final class FlutterCompassPlugin implements FlutterPlugin, StreamHandler 
 
     private Display display;
     private SensorManager sensorManager;
+    private Context context;
+    private boolean initialized = false;
 
     @Nullable
     private Sensor compassSensor;
@@ -62,19 +64,23 @@ public final class FlutterCompassPlugin implements FlutterPlugin, StreamHandler 
     }
 
     private FlutterCompassPlugin(Context context) {
+        this.context = context;
+    }
+
+    private void doInitialization(Context context) {
         display = ((DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE))
-                .getDisplay(Display.DEFAULT_DISPLAY);
+            .getDisplay(Display.DEFAULT_DISPLAY);
         sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         compassSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         if (compassSensor == null) {
             Log.d(TAG, "Rotation vector sensor not supported on device, "
-                    + "falling back to accelerometer and magnetic field.");
+                + "falling back to accelerometer and magnetic field.");
         }
 
         gravitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         magneticFieldSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        initialized = true;
     }
-
     // New Plugin APIs
 
     @Override
@@ -88,8 +94,10 @@ public final class FlutterCompassPlugin implements FlutterPlugin, StreamHandler 
     }
 
     public void onListen(Object arguments, EventSink events) {
+        if (!initialized) {
+            doInitialization(context);
+        }
         sensorEventListener = createSensorEventListener(events);
-
         if (isCompassSensorAvailable()) {
             // Does nothing if the sensors already registered.
             sensorManager.registerListener(sensorEventListener, compassSensor, SENSOR_DELAY_MICROS);
